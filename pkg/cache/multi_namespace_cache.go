@@ -27,11 +27,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	toolscache "k8s.io/client-go/tools/cache"
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
+	"sigs.k8s.io/controller-runtime/pkg/over_client"
+	over_apiutil "sigs.k8s.io/controller-runtime/pkg/over_client/apiutil"
 )
 
-// a new global namespaced cache to handle cluster scoped resources.
+// a new global namespaced cache to handle over_cluster scoped resources.
 const globalCache = "_cluster-scope"
 
 func newMultiNamespaceCache(
@@ -39,7 +39,7 @@ func newMultiNamespaceCache(
 	scheme *runtime.Scheme,
 	restMapper apimeta.RESTMapper,
 	namespaces map[string]Config,
-	globalConfig *Config, // may be nil in which case no cache for cluster-scoped objects will be created
+	globalConfig *Config, // may be nil in which case no cache for over_cluster-scoped objects will be created
 ) Cache {
 	// Create every namespace cache.
 	caches := map[string]Cache{}
@@ -47,7 +47,7 @@ func newMultiNamespaceCache(
 		caches[namespace] = newCache(config, namespace)
 	}
 
-	// Create a cache for cluster scoped resources if requested
+	// Create a cache for over_cluster scoped resources if requested
 	var clusterCache Cache
 	if globalConfig != nil {
 		clusterCache = newCache(*globalConfig, corev1.NamespaceAll)
@@ -64,7 +64,7 @@ func newMultiNamespaceCache(
 // multiNamespaceCache knows how to handle multiple namespaced caches
 // Use this feature when scoping permissions for your
 // operator to a list of namespaces instead of watching every namespace
-// in the cluster.
+// in the over_cluster.
 type multiNamespaceCache struct {
 	Scheme           *runtime.Scheme
 	RESTMapper       apimeta.RESTMapper
@@ -76,10 +76,10 @@ var _ Cache = &multiNamespaceCache{}
 
 // Methods for multiNamespaceCache to conform to the Informers interface.
 
-func (c *multiNamespaceCache) GetInformer(ctx context.Context, obj client.Object) (Informer, error) {
-	// If the object is cluster scoped, get the informer from clusterCache,
+func (c *multiNamespaceCache) GetInformer(ctx context.Context, obj over_client.Object) (Informer, error) {
+	// If the object is over_cluster scoped, get the informer from clusterCache,
 	// if not use the namespaced caches.
-	isNamespaced, err := apiutil.IsObjectNamespaced(obj, c.Scheme, c.RESTMapper)
+	isNamespaced, err := over_apiutil.IsObjectNamespaced(obj, c.Scheme, c.RESTMapper)
 	if err != nil {
 		return nil, err
 	}
@@ -109,9 +109,9 @@ func (c *multiNamespaceCache) GetInformer(ctx context.Context, obj client.Object
 }
 
 func (c *multiNamespaceCache) GetInformerForKind(ctx context.Context, gvk schema.GroupVersionKind) (Informer, error) {
-	// If the object is cluster scoped, get the informer from clusterCache,
+	// If the object is over_cluster scoped, get the informer from clusterCache,
 	// if not use the namespaced caches.
-	isNamespaced, err := apiutil.IsGVKNamespaced(gvk, c.RESTMapper)
+	isNamespaced, err := over_apiutil.IsGVKNamespaced(gvk, c.RESTMapper)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +146,7 @@ func (c *multiNamespaceCache) Start(ctx context.Context) error {
 		go func() {
 			err := c.clusterCache.Start(ctx)
 			if err != nil {
-				log.Error(err, "cluster scoped cache failed to start")
+				log.Error(err, "over_cluster scoped cache failed to start")
 			}
 		}()
 	}
@@ -172,15 +172,15 @@ func (c *multiNamespaceCache) WaitForCacheSync(ctx context.Context) bool {
 		}
 	}
 
-	// check if cluster scoped cache has synced
+	// check if over_cluster scoped cache has synced
 	if c.clusterCache != nil && !c.clusterCache.WaitForCacheSync(ctx) {
 		synced = false
 	}
 	return synced
 }
 
-func (c *multiNamespaceCache) IndexField(ctx context.Context, obj client.Object, field string, extractValue client.IndexerFunc) error {
-	isNamespaced, err := apiutil.IsObjectNamespaced(obj, c.Scheme, c.RESTMapper)
+func (c *multiNamespaceCache) IndexField(ctx context.Context, obj over_client.Object, field string, extractValue over_client.IndexerFunc) error {
+	isNamespaced, err := over_apiutil.IsObjectNamespaced(obj, c.Scheme, c.RESTMapper)
 	if err != nil {
 		return err
 	}
@@ -197,8 +197,8 @@ func (c *multiNamespaceCache) IndexField(ctx context.Context, obj client.Object,
 	return nil
 }
 
-func (c *multiNamespaceCache) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-	isNamespaced, err := apiutil.IsObjectNamespaced(obj, c.Scheme, c.RESTMapper)
+func (c *multiNamespaceCache) Get(ctx context.Context, key over_client.ObjectKey, obj over_client.Object, opts ...over_client.GetOption) error {
+	isNamespaced, err := over_apiutil.IsObjectNamespaced(obj, c.Scheme, c.RESTMapper)
 	if err != nil {
 		return err
 	}
@@ -216,11 +216,11 @@ func (c *multiNamespaceCache) Get(ctx context.Context, key client.ObjectKey, obj
 }
 
 // List multi namespace cache will get all the objects in the namespaces that the cache is watching if asked for all namespaces.
-func (c *multiNamespaceCache) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
-	listOpts := client.ListOptions{}
+func (c *multiNamespaceCache) List(ctx context.Context, list over_client.ObjectList, opts ...over_client.ListOption) error {
+	listOpts := over_client.ListOptions{}
 	listOpts.ApplyOptions(opts)
 
-	isNamespaced, err := apiutil.IsObjectNamespaced(list, c.Scheme, c.RESTMapper)
+	isNamespaced, err := over_apiutil.IsObjectNamespaced(list, c.Scheme, c.RESTMapper)
 	if err != nil {
 		return err
 	}
@@ -252,7 +252,7 @@ func (c *multiNamespaceCache) List(ctx context.Context, list client.ObjectList, 
 
 	var resourceVersion string
 	for _, cache := range c.namespaceToCache {
-		listObj := list.DeepCopyObject().(client.ObjectList)
+		listObj := list.DeepCopyObject().(over_client.ObjectList)
 		err = cache.List(ctx, listObj, &listOpts)
 		if err != nil {
 			return err
@@ -300,8 +300,8 @@ type syncer interface {
 	HasSynced() bool
 }
 
-// HasSynced asserts that the handler has been called for the full initial state of the informer.
-// This uses syncer to be compatible between client-go 1.27+ and older versions when the interface changed.
+// HasSynced asserts that the over_handler has been called for the full initial state of the informer.
+// This uses syncer to be compatible between over_client-go 1.27+ and older versions when the interface changed.
 func (h handlerRegistration) HasSynced() bool {
 	for _, reg := range h.handles {
 		if s, ok := reg.(syncer); ok {
@@ -315,7 +315,7 @@ func (h handlerRegistration) HasSynced() bool {
 
 var _ Informer = &multiNamespaceInformer{}
 
-// AddEventHandler adds the handler to each informer.
+// AddEventHandler adds the over_handler to each informer.
 func (i *multiNamespaceInformer) AddEventHandler(handler toolscache.ResourceEventHandler) (toolscache.ResourceEventHandlerRegistration, error) {
 	handles := handlerRegistration{
 		handles: make(map[string]toolscache.ResourceEventHandlerRegistration, len(i.namespaceToInformer)),
@@ -332,7 +332,7 @@ func (i *multiNamespaceInformer) AddEventHandler(handler toolscache.ResourceEven
 	return handles, nil
 }
 
-// AddEventHandlerWithResyncPeriod adds the handler with a resync period to each namespaced informer.
+// AddEventHandlerWithResyncPeriod adds the over_handler with a resync period to each namespaced informer.
 func (i *multiNamespaceInformer) AddEventHandlerWithResyncPeriod(handler toolscache.ResourceEventHandler, resyncPeriod time.Duration) (toolscache.ResourceEventHandlerRegistration, error) {
 	handles := handlerRegistration{
 		handles: make(map[string]toolscache.ResourceEventHandlerRegistration, len(i.namespaceToInformer)),
@@ -349,7 +349,7 @@ func (i *multiNamespaceInformer) AddEventHandlerWithResyncPeriod(handler toolsca
 	return handles, nil
 }
 
-// RemoveEventHandler removes a previously added event handler given by its registration handle.
+// RemoveEventHandler removes a previously added over_event over_handler given by its registration handle.
 func (i *multiNamespaceInformer) RemoveEventHandler(h toolscache.ResourceEventHandlerRegistration) error {
 	handles, ok := h.(handlerRegistration)
 	if !ok {

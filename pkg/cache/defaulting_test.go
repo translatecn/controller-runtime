@@ -31,7 +31,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/utils/pointer"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/over_client"
 )
 
 func TestDefaultOpts(t *testing.T) {
@@ -47,7 +47,7 @@ func TestDefaultOpts(t *testing.T) {
 		{
 			name: "ByObject.Namespaces gets defaulted from ByObject",
 			in: Options{
-				ByObject: map[client.Object]ByObject{pod: {
+				ByObject: map[over_client.Object]ByObject{pod: {
 					Namespaces: map[string]Config{
 						"default": {},
 					},
@@ -69,7 +69,7 @@ func TestDefaultOpts(t *testing.T) {
 		{
 			name: "ByObject.Namespaces gets defaulted from DefaultNamespaces",
 			in: Options{
-				ByObject: map[client.Object]ByObject{pod: {
+				ByObject: map[over_client.Object]ByObject{pod: {
 					Namespaces: map[string]Config{
 						"default": {},
 					},
@@ -90,7 +90,7 @@ func TestDefaultOpts(t *testing.T) {
 		{
 			name: "ByObject.Namespaces gets defaulted from DefaultLabelSelector",
 			in: Options{
-				ByObject: map[client.Object]ByObject{pod: {
+				ByObject: map[over_client.Object]ByObject{pod: {
 					Namespaces: map[string]Config{
 						"default": {},
 					},
@@ -108,7 +108,7 @@ func TestDefaultOpts(t *testing.T) {
 		{
 			name: "ByObject.Namespaces gets defaulted from DefaultNamespaces",
 			in: Options{
-				ByObject: map[client.Object]ByObject{pod: {}},
+				ByObject: map[over_client.Object]ByObject{pod: {}},
 				DefaultNamespaces: map[string]Config{
 					"default": {LabelSelector: labels.SelectorFromSet(map[string]string{"from": "default-namespaces"})},
 				},
@@ -124,7 +124,7 @@ func TestDefaultOpts(t *testing.T) {
 		{
 			name: "ByObject.Namespaces doesn't get defaulted when its empty",
 			in: Options{
-				ByObject: map[client.Object]ByObject{pod: {Namespaces: map[string]Config{}}},
+				ByObject: map[over_client.Object]ByObject{pod: {Namespaces: map[string]Config{}}},
 				DefaultNamespaces: map[string]Config{
 					"default": {LabelSelector: labels.SelectorFromSet(map[string]string{"from": "default-namespaces"})},
 				},
@@ -138,7 +138,7 @@ func TestDefaultOpts(t *testing.T) {
 		{
 			name: "ByObject.Labels gets defaulted from DefautLabelSelector",
 			in: Options{
-				ByObject:             map[client.Object]ByObject{pod: {}},
+				ByObject:             map[over_client.Object]ByObject{pod: {}},
 				DefaultLabelSelector: labels.SelectorFromSet(map[string]string{"from": "default-label-selector"}),
 			},
 
@@ -150,7 +150,7 @@ func TestDefaultOpts(t *testing.T) {
 		{
 			name: "ByObject.Labels doesn't get defaulted when set",
 			in: Options{
-				ByObject:             map[client.Object]ByObject{pod: {Label: labels.SelectorFromSet(map[string]string{"from": "by-object"})}},
+				ByObject:             map[over_client.Object]ByObject{pod: {Label: labels.SelectorFromSet(map[string]string{"from": "by-object"})}},
 				DefaultLabelSelector: labels.SelectorFromSet(map[string]string{"from": "default-label-selector"}),
 			},
 
@@ -162,7 +162,7 @@ func TestDefaultOpts(t *testing.T) {
 		{
 			name: "ByObject.Fields gets defaulted from DefaultFieldSelector",
 			in: Options{
-				ByObject:             map[client.Object]ByObject{pod: {}},
+				ByObject:             map[over_client.Object]ByObject{pod: {}},
 				DefaultFieldSelector: fields.SelectorFromSet(map[string]string{"from": "default-field-selector"}),
 			},
 
@@ -174,7 +174,7 @@ func TestDefaultOpts(t *testing.T) {
 		{
 			name: "ByObject.Fields doesn't get defaulted when set",
 			in: Options{
-				ByObject:             map[client.Object]ByObject{pod: {Field: fields.SelectorFromSet(map[string]string{"from": "by-object"})}},
+				ByObject:             map[over_client.Object]ByObject{pod: {Field: fields.SelectorFromSet(map[string]string{"from": "by-object"})}},
 				DefaultFieldSelector: fields.SelectorFromSet(map[string]string{"from": "default-field-selector"}),
 			},
 
@@ -186,7 +186,7 @@ func TestDefaultOpts(t *testing.T) {
 		{
 			name: "ByObject.UnsafeDisableDeepCopy gets defaulted from DefaultUnsafeDisableDeepCopy",
 			in: Options{
-				ByObject:                     map[client.Object]ByObject{pod: {}},
+				ByObject:                     map[over_client.Object]ByObject{pod: {}},
 				DefaultUnsafeDisableDeepCopy: pointer.Bool(true),
 			},
 
@@ -198,7 +198,7 @@ func TestDefaultOpts(t *testing.T) {
 		{
 			name: "ByObject.UnsafeDisableDeepCopy doesn't get defaulted when set",
 			in: Options{
-				ByObject:                     map[client.Object]ByObject{pod: {UnsafeDisableDeepCopy: pointer.Bool(false)}},
+				ByObject:                     map[over_client.Object]ByObject{pod: {UnsafeDisableDeepCopy: pointer.Bool(false)}},
 				DefaultUnsafeDisableDeepCopy: pointer.Bool(true),
 			},
 
@@ -247,7 +247,7 @@ func TestDefaultOpts(t *testing.T) {
 			}
 
 			if diff := tc.verification(defaulted); diff != "" {
-				t.Errorf("expected config differs from actual: %s", diff)
+				t.Errorf("expected over_config differs from actual: %s", diff)
 			}
 		})
 	}
@@ -284,7 +284,7 @@ func TestDefaultConfigConsidersAllFields(t *testing.T) {
 		defaulted := defaultConfig(Config{}, fuzzed)
 
 		if diff := cmp.Diff(fuzzed, defaulted, cmp.Exporter(func(reflect.Type) bool { return true })); diff != "" {
-			t.Errorf("Defaulted config doesn't match fuzzed one: %s", diff)
+			t.Errorf("Defaulted over_config doesn't match fuzzed one: %s", diff)
 		}
 	}
 }

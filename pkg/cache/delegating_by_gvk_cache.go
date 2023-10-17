@@ -24,8 +24,8 @@ import (
 	"golang.org/x/exp/maps"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
+	"sigs.k8s.io/controller-runtime/pkg/over_client"
+	over_apiutil "sigs.k8s.io/controller-runtime/pkg/over_client/apiutil"
 )
 
 // delegatingByGVKCache delegates to a type-specific cache if present
@@ -36,7 +36,7 @@ type delegatingByGVKCache struct {
 	defaultCache Cache
 }
 
-func (dbt *delegatingByGVKCache) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+func (dbt *delegatingByGVKCache) Get(ctx context.Context, key over_client.ObjectKey, obj over_client.Object, opts ...over_client.GetOption) error {
 	cache, err := dbt.cacheForObject(obj)
 	if err != nil {
 		return err
@@ -44,7 +44,7 @@ func (dbt *delegatingByGVKCache) Get(ctx context.Context, key client.ObjectKey, 
 	return cache.Get(ctx, key, obj, opts...)
 }
 
-func (dbt *delegatingByGVKCache) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+func (dbt *delegatingByGVKCache) List(ctx context.Context, list over_client.ObjectList, opts ...over_client.ListOption) error {
 	cache, err := dbt.cacheForObject(list)
 	if err != nil {
 		return err
@@ -52,7 +52,7 @@ func (dbt *delegatingByGVKCache) List(ctx context.Context, list client.ObjectLis
 	return cache.List(ctx, list, opts...)
 }
 
-func (dbt *delegatingByGVKCache) GetInformer(ctx context.Context, obj client.Object) (Informer, error) {
+func (dbt *delegatingByGVKCache) GetInformer(ctx context.Context, obj over_client.Object) (Informer, error) {
 	cache, err := dbt.cacheForObject(obj)
 	if err != nil {
 		return nil, err
@@ -101,7 +101,7 @@ func (dbt *delegatingByGVKCache) WaitForCacheSync(ctx context.Context) bool {
 	return synced
 }
 
-func (dbt *delegatingByGVKCache) IndexField(ctx context.Context, obj client.Object, field string, extractValue client.IndexerFunc) error {
+func (dbt *delegatingByGVKCache) IndexField(ctx context.Context, obj over_client.Object, field string, extractValue over_client.IndexerFunc) error {
 	cache, err := dbt.cacheForObject(obj)
 	if err != nil {
 		return err
@@ -110,7 +110,7 @@ func (dbt *delegatingByGVKCache) IndexField(ctx context.Context, obj client.Obje
 }
 
 func (dbt *delegatingByGVKCache) cacheForObject(o runtime.Object) (Cache, error) {
-	gvk, err := apiutil.GVKForObject(o, dbt.scheme)
+	gvk, err := over_apiutil.GVKForObject(o, dbt.scheme)
 	if err != nil {
 		return nil, err
 	}

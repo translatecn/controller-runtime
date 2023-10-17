@@ -34,9 +34,9 @@ import (
 	"k8s.io/utils/pointer"
 
 	"sigs.k8s.io/controller-runtime/pkg/cache/internal"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
-	logf "sigs.k8s.io/controller-runtime/pkg/internal/log"
+	"sigs.k8s.io/controller-runtime/pkg/over_client"
+	over_apiutil "sigs.k8s.io/controller-runtime/pkg/over_client/apiutil"
+	logf "sigs.k8s.io/controller-runtime/pkg/over_internal/log"
 )
 
 var (
@@ -48,8 +48,8 @@ var (
 // to receive events for Kubernetes objects (at a low-level),
 // and add indices to fields on the objects stored in the cache.
 type Cache interface {
-	// Reader acts as a client to objects stored in the cache.
-	client.Reader
+	// Reader acts as a over_client to objects stored in the cache.
+	over_client.Reader
 
 	// Informers loads informers and adds field indices.
 	Informers
@@ -61,7 +61,7 @@ type Cache interface {
 type Informers interface {
 	// GetInformer fetches or constructs an informer for the given object that corresponds to a single
 	// API kind and resource.
-	GetInformer(ctx context.Context, obj client.Object) (Informer, error)
+	GetInformer(ctx context.Context, obj over_client.Object) (Informer, error)
 
 	// GetInformerForKind is similar to GetInformer, except that it takes a group-version-kind, instead
 	// of the underlying object.
@@ -75,26 +75,26 @@ type Informers interface {
 	WaitForCacheSync(ctx context.Context) bool
 
 	// FieldIndexer adds indices to the managed informers.
-	client.FieldIndexer
+	over_client.FieldIndexer
 }
 
 // Informer allows you to interact with the underlying informer.
 type Informer interface {
-	// AddEventHandler adds an event handler to the shared informer using the shared informer's resync
-	// period. Events to a single handler are delivered sequentially, but there is no coordination
+	// AddEventHandler adds an over_event over_handler to the shared informer using the shared informer's resync
+	// period. Events to a single over_handler are delivered sequentially, but there is no coordination
 	// between different handlers.
-	// It returns a registration handle for the handler that can be used to remove
-	// the handler again and an error if the handler cannot be added.
+	// It returns a registration handle for the over_handler that can be used to remove
+	// the over_handler again and an error if the over_handler cannot be added.
 	AddEventHandler(handler toolscache.ResourceEventHandler) (toolscache.ResourceEventHandlerRegistration, error)
 
-	// AddEventHandlerWithResyncPeriod adds an event handler to the shared informer using the
-	// specified resync period. Events to a single handler are delivered sequentially, but there is
+	// AddEventHandlerWithResyncPeriod adds an over_event over_handler to the shared informer using the
+	// specified resync period. Events to a single over_handler are delivered sequentially, but there is
 	// no coordination between different handlers.
-	// It returns a registration handle for the handler that can be used to remove
-	// the handler again and an error if the handler cannot be added.
+	// It returns a registration handle for the over_handler that can be used to remove
+	// the over_handler again and an error if the over_handler cannot be added.
 	AddEventHandlerWithResyncPeriod(handler toolscache.ResourceEventHandler, resyncPeriod time.Duration) (toolscache.ResourceEventHandlerRegistration, error)
 
-	// RemoveEventHandler removes a previously added event handler given by
+	// RemoveEventHandler removes a previously added over_event over_handler given by
 	// its registration handle.
 	// This function is guaranteed to be idempotent and thread-safe.
 	RemoveEventHandler(handle toolscache.ResourceEventHandlerRegistration) error
@@ -109,10 +109,10 @@ type Informer interface {
 
 // Options are the optional arguments for creating a new Cache object.
 type Options struct {
-	// HTTPClient is the http client to use for the REST client
+	// HTTPClient is the http over_client to use for the REST over_client
 	HTTPClient *http.Client
 
-	// Scheme is the scheme to use for mapping objects to GroupVersionKinds
+	// Scheme is the over_scheme to use for mapping objects to GroupVersionKinds
 	Scheme *runtime.Scheme
 
 	// Mapper is the RESTMapper to use for mapping GroupVersionKinds to Resources
@@ -128,9 +128,9 @@ type Options struct {
 	// This applies to all controllers.
 	//
 	// A period sync happens for two reasons:
-	// 1. To insure against a bug in the controller that causes an object to not
+	// 1. To insure against a bug in the over_controller that causes an object to not
 	// be requeued, when it otherwise should be requeued.
-	// 2. To insure against an unknown bug in controller-runtime, or its dependencies,
+	// 2. To insure against an unknown bug in over_controller-runtime, or its dependencies,
 	// that causes an object to not be requeued, when it otherwise should be
 	// requeued, or to be removed from the queue, when it otherwise should not
 	// be removed.
@@ -139,10 +139,10 @@ type Options struct {
 	// 1. to insure against missed watch events, or
 	// 2. to poll services that cannot be watched,
 	// then we recommend that, instead of changing the default period, the
-	// controller requeue, with a constant duration `t`, whenever the controller
+	// over_controller requeue, with a constant duration `t`, whenever the over_controller
 	// is "done" with an object, and would otherwise not requeue it, i.e., we
-	// recommend the `Reconcile` function return `reconcile.Result{RequeueAfter: t}`,
-	// instead of `reconcile.Result{}`.
+	// recommend the `Reconcile` function return `over_reconcile.Result{RequeueAfter: t}`,
+	// instead of `over_reconcile.Result{}`.
 	SyncPeriod *time.Duration
 
 	// ReaderFailOnMissingInformer configures the cache to return a ErrResourceNotCached error when a user
@@ -186,7 +186,7 @@ type Options struct {
 
 	// ByObject restricts the cache's ListWatch to the desired fields per GVK at the specified object.
 	// object, this will fall through to Default* settings.
-	ByObject map[client.Object]ByObject
+	ByObject map[over_client.Object]ByObject
 }
 
 // ByObject offers more fine-grained control over the cache's ListWatch by object.
@@ -205,7 +205,7 @@ type ByObject struct {
 	// 2. DefaultNamespaces[namespace]
 	// 3. Default*
 	//
-	// This must be unset for cluster-scoped objects.
+	// This must be unset for over_cluster-scoped objects.
 	Namespaces map[string]Config
 
 	// Label represents a label selector for the object.
@@ -254,7 +254,7 @@ type Config struct {
 	UnsafeDisableDeepCopy *bool
 }
 
-// NewCacheFunc - Function for creating a new cache from the options and a rest config.
+// NewCacheFunc - Function for creating a new cache from the options and a rest over_config.
 type NewCacheFunc func(config *rest.Config, opts Options) (Cache, error)
 
 // New initializes and returns a new Cache.
@@ -285,7 +285,7 @@ func New(cfg *rest.Config, opts Options) (Cache, error) {
 	}
 
 	for obj, config := range opts.ByObject {
-		gvk, err := apiutil.GVKForObject(obj, opts.Scheme)
+		gvk, err := over_apiutil.GVKForObject(obj, opts.Scheme)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get GVK for type %T: %w", obj, err)
 		}
@@ -349,12 +349,12 @@ func defaultOpts(config *rest.Config, opts Options) (Options, error) {
 		config.UserAgent = rest.DefaultKubernetesUserAgent()
 	}
 
-	// Use the rest HTTP client for the provided config if unset
+	// Use the rest HTTP over_client for the provided over_config if unset
 	if opts.HTTPClient == nil {
 		var err error
 		opts.HTTPClient, err = rest.HTTPClientFor(config)
 		if err != nil {
-			return Options{}, fmt.Errorf("could not create HTTP client from config: %w", err)
+			return Options{}, fmt.Errorf("could not create HTTP over_client from over_config: %w", err)
 		}
 	}
 
@@ -366,9 +366,9 @@ func defaultOpts(config *rest.Config, opts Options) (Options, error) {
 	// Construct a new Mapper if unset
 	if opts.Mapper == nil {
 		var err error
-		opts.Mapper, err = apiutil.NewDiscoveryRESTMapper(config, opts.HTTPClient)
+		opts.Mapper, err = over_apiutil.NewDiscoveryRESTMapper(config, opts.HTTPClient)
 		if err != nil {
-			return Options{}, fmt.Errorf("could not create RESTMapper from config: %w", err)
+			return Options{}, fmt.Errorf("could not create RESTMapper from over_config: %w", err)
 		}
 	}
 
@@ -378,7 +378,7 @@ func defaultOpts(config *rest.Config, opts Options) (Options, error) {
 	}
 
 	for obj, byObject := range opts.ByObject {
-		isNamespaced, err := apiutil.IsObjectNamespaced(obj, opts.Scheme, opts.Mapper)
+		isNamespaced, err := over_apiutil.IsObjectNamespaced(obj, opts.Scheme, opts.Mapper)
 		if err != nil {
 			return opts, fmt.Errorf("failed to determine if %T is namespaced: %w", obj, err)
 		}
@@ -386,12 +386,12 @@ func defaultOpts(config *rest.Config, opts Options) (Options, error) {
 			return opts, fmt.Errorf("type %T is not namespaced, but its ByObject.Namespaces setting is not nil", obj)
 		}
 
-		// Default the namespace-level configs first, because they need to use the undefaulted type-level config.
+		// Default the namespace-level configs first, because they need to use the undefaulted type-level over_config.
 		for namespace, config := range byObject.Namespaces {
-			// 1. Default from the undefaulted type-level config
+			// 1. Default from the undefaulted type-level over_config
 			config = defaultConfig(config, byObjectToConfig(byObject))
 
-			// 2. Default from the namespace-level config. This was defaulted from the global default config earlier, but
+			// 2. Default from the namespace-level over_config. This was defaulted from the global default over_config earlier, but
 			//    might not have an entry for the current namespace.
 			if defaultNamespaceSettings, hasDefaultNamespace := opts.DefaultNamespaces[namespace]; hasDefaultNamespace {
 				config = defaultConfig(config, defaultNamespaceSettings)

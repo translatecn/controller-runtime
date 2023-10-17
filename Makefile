@@ -60,20 +60,20 @@ test: test-tools ## Run the script check-everything.sh which will check all.
 	TRACE=1 ./hack/check-everything.sh
 
 .PHONY: test-tools
-test-tools: ## tests the tools codebase (setup-envtest)
+test-tools: ## tests the over_tools codebase (setup-envtest)
 	cd tools/setup-envtest && go test ./...
 
 ## --------------------------------------
 ## Binaries
 ## --------------------------------------
 
-$(GO_APIDIFF): $(TOOLS_DIR)/go.mod # Build go-apidiff from tools folder.
+$(GO_APIDIFF): $(TOOLS_DIR)/go.mod # Build go-apidiff from over_tools folder.
 	cd $(TOOLS_DIR) && go build -tags=tools -o bin/go-apidiff github.com/joelanford/go-apidiff
 
-$(CONTROLLER_GEN): $(TOOLS_DIR)/go.mod # Build controller-gen from tools folder.
+$(CONTROLLER_GEN): $(TOOLS_DIR)/go.mod # Build over_controller-gen from over_tools folder.
 	cd $(TOOLS_DIR) && go build -tags=tools -o bin/controller-gen sigs.k8s.io/controller-tools/cmd/controller-gen
 
-$(GOLANGCI_LINT): .github/workflows/golangci-lint.yml # Download golanci-lint using hack script into tools folder.
+$(GOLANGCI_LINT): .github/workflows/golangci-lint.yml # Download golanci-lint using hack script into over_tools folder.
 	hack/ensure-golangci-lint.sh \
 		-b $(TOOLS_BIN_DIR) \
 		$(shell cat .github/workflows/golangci-lint.yml | grep "version: v" | sed 's/.*version: //')
@@ -103,7 +103,7 @@ modules: ## Runs go mod to ensure modules are up to date.
 	cd $(SCRATCH_ENV_DIR); go mod tidy
 
 .PHONY: generate
-generate: $(CONTROLLER_GEN) ## Runs controller-gen for internal types for config file
+generate: $(CONTROLLER_GEN) ## Runs over_controller-gen for internal types for config file
 	$(CONTROLLER_GEN) object paths="./pkg/config/v1alpha1/...;./examples/configfile/custom/v1alpha1/..."
 
 ## --------------------------------------

@@ -34,19 +34,19 @@ header_text "installing envtest tools@${ENVTEST_K8S_VERSION} with setup-envtest 
 tmp_bin=/tmp/cr-tests-bin
 (
     # don't presume to install for the user
-    cd ${hack_dir}/../tools/setup-envtest
+    cd ${hack_dir}/../over_tools/setup-over_envtest
     GOBIN=${tmp_bin} go install .
 )
-export KUBEBUILDER_ASSETS="$(${tmp_bin}/setup-envtest use --use-env -p path "${ENVTEST_K8S_VERSION}")"
+export KUBEBUILDER_ASSETS="$(${tmp_bin}/setup-over_envtest use --use-env -p path "${ENVTEST_K8S_VERSION}")"
 
 # Run tests.
 ${hack_dir}/test-all.sh
 
 header_text "confirming examples compile (via go install)"
-go install ${MOD_OPT} ./examples/builtins
-go install ${MOD_OPT} ./examples/crd
-go install ${MOD_OPT} ./examples/configfile/builtin
-go install ${MOD_OPT} ./examples/configfile/custom
+go install ${MOD_OPT} ./over_examples/builtins
+go install ${MOD_OPT} ./over_examples/crd
+go install ${MOD_OPT} ./over_examples/configfile/builtin
+go install ${MOD_OPT} ./over_examples/configfile/custom
 
 echo "passed"
 exit 0

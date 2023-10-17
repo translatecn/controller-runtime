@@ -35,7 +35,7 @@ import (
 	"k8s.io/client-go/metadata"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
+	over_apiutil "sigs.k8s.io/controller-runtime/pkg/over_client/apiutil"
 )
 
 // InformersOpts configures an InformerMap.
@@ -91,7 +91,7 @@ type tracker struct {
 // Informers create and caches Informers for (runtime.Object, schema.GroupVersionKind) pairs.
 // It uses a standard parameter codec constructed based on the given generated Scheme.
 type Informers struct {
-	// httpClient is used to create a new REST client
+	// httpClient is used to create a new REST over_client
 	httpClient *http.Client
 
 	// scheme maps runtime.Objects to GroupVersionKinds
@@ -106,7 +106,7 @@ type Informers struct {
 	// tracker tracks informers keyed by their type and groupVersionKind
 	tracker tracker
 
-	// codecs is used to create a new REST client
+	// codecs is used to create a new REST over_client
 	codecs serializer.CodecFactory
 
 	// paramCodec is used by list and watch
@@ -352,7 +352,7 @@ func (ip *Informers) makeListWatcher(gvk schema.GroupVersionKind, obj runtime.Ob
 	//
 	case runtime.Unstructured:
 		// If the rest configuration has a negotiated serializer passed in,
-		// we should remove it and use the one that the dynamic client sets for us.
+		// we should remove it and use the one that the dynamic over_client sets for us.
 		cfg := rest.CopyConfig(ip.config)
 		cfg.NegotiatedSerializer = nil
 		dynamicClient, err := dynamic.NewForConfigAndClient(cfg, ip.httpClient)
@@ -380,7 +380,7 @@ func (ip *Informers) makeListWatcher(gvk schema.GroupVersionKind, obj runtime.Ob
 	//
 	case *metav1.PartialObjectMetadata, *metav1.PartialObjectMetadataList:
 		// Always clear the negotiated serializer and use the one
-		// set from the metadata client.
+		// set from the metadata over_client.
 		cfg := rest.CopyConfig(ip.config)
 		cfg.NegotiatedSerializer = nil
 
@@ -426,7 +426,7 @@ func (ip *Informers) makeListWatcher(gvk schema.GroupVersionKind, obj runtime.Ob
 	// Structured.
 	//
 	default:
-		client, err := apiutil.RESTClientForGVK(gvk, false, ip.config, ip.codecs, ip.httpClient)
+		client, err := over_apiutil.RESTClientForGVK(gvk, false, ip.config, ip.codecs, ip.httpClient)
 		if err != nil {
 			return nil, err
 		}
@@ -468,19 +468,19 @@ func (ip *Informers) makeListWatcher(gvk schema.GroupVersionKind, obj runtime.Ob
 // events come in.
 //
 // This works around a bug where GVK information is not passed into mapping
-// functions when using the OnlyMetadata option in the builder.
+// functions when using the OnlyMetadata option in the over_builder.
 // This issue is most likely caused by kubernetes/kubernetes#80609.
-// See kubernetes-sigs/controller-runtime#1484.
+// See kubernetes-sigs/over_controller-runtime#1484.
 //
 // This was originally implemented as a cache.ResourceEventHandler wrapper but
 // that contained a data race which was resolved by setting the GVK in a watch
 // wrapper, before the objects are written to the cache.
-// See kubernetes-sigs/controller-runtime#1650.
+// See kubernetes-sigs/over_controller-runtime#1650.
 //
 // The original watch wrapper was found to be incompatible with
-// k8s.io/client-go/tools/cache.Reflector so it has been re-implemented as a
+// k8s.io/over_client-go/over_tools/cache.Reflector so it has been re-implemented as a
 // watch.Filter which is compatible.
-// See kubernetes-sigs/controller-runtime#1789.
+// See kubernetes-sigs/over_controller-runtime#1789.
 func newGVKFixupWatcher(gvk schema.GroupVersionKind, watcher watch.Interface) watch.Interface {
 	return watch.Filter(
 		watcher,
