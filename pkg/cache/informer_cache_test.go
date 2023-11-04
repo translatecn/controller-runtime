@@ -23,8 +23,8 @@ import (
 	"k8s.io/client-go/rest"
 
 	"sigs.k8s.io/controller-runtime/pkg/cache"
-	over_apiutil "sigs.k8s.io/controller-runtime/pkg/over_client/apiutil"
-	"sigs.k8s.io/controller-runtime/pkg/over_manager"
+	apiutil "sigs.k8s.io/controller-runtime/pkg/client/apiutil"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 var _ = Describe("informerCache", func() {
@@ -33,13 +33,13 @@ var _ = Describe("informerCache", func() {
 
 		httpClient, err := rest.HTTPClientFor(cfg)
 		Expect(err).ToNot(HaveOccurred())
-		mapper, err := over_apiutil.NewDynamicRESTMapper(cfg, httpClient)
+		mapper, err := apiutil.NewDynamicRESTMapper(cfg, httpClient)
 		Expect(err).ToNot(HaveOccurred())
 
 		c, err := cache.New(cfg, cache.Options{Mapper: mapper})
 		Expect(err).ToNot(HaveOccurred())
 
-		leaderElectionRunnable, ok := c.(over_manager.LeaderElectionRunnable)
+		leaderElectionRunnable, ok := c.(manager.LeaderElectionRunnable)
 		Expect(ok).To(BeTrue())
 		Expect(leaderElectionRunnable.NeedLeaderElection()).To(BeFalse())
 	})

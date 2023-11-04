@@ -42,7 +42,7 @@ import (
 	"k8s.io/utils/pointer"
 
 	"sigs.k8s.io/controller-runtime/pkg/cache"
-	"sigs.k8s.io/controller-runtime/pkg/over_client"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const testNodeOne = "test-node-1"
@@ -52,7 +52,7 @@ const testNamespaceThree = "test-namespace-3"
 
 // TODO(community): Pull these helper functions into testenv.
 // Restart policy is included to allow indexing on that field.
-func createPodWithLabels(name, namespace string, restartPolicy corev1.RestartPolicy, labels map[string]string) over_client.Object {
+func createPodWithLabels(name, namespace string, restartPolicy corev1.RestartPolicy, labels map[string]string) client.Object {
 	three := int64(3)
 	if labels == nil {
 		labels = map[string]string{}
@@ -70,14 +70,14 @@ func createPodWithLabels(name, namespace string, restartPolicy corev1.RestartPol
 			ActiveDeadlineSeconds: &three,
 		},
 	}
-	cl, err := over_client.New(cfg, over_client.Options{})
+	cl, err := client.New(cfg, client.Options{})
 	Expect(err).NotTo(HaveOccurred())
 	err = cl.Create(context.Background(), pod)
 	Expect(err).NotTo(HaveOccurred())
 	return pod
 }
 
-func createSvc(name, namespace string, cl over_client.Client) over_client.Object {
+func createSvc(name, namespace string, cl client.Client) client.Object {
 	svc := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -92,7 +92,7 @@ func createSvc(name, namespace string, cl over_client.Client) over_client.Object
 	return svc
 }
 
-func createSA(name, namespace string, cl over_client.Client) over_client.Object {
+func createSA(name, namespace string, cl client.Client) client.Object {
 	sa := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -104,12 +104,12 @@ func createSA(name, namespace string, cl over_client.Client) over_client.Object 
 	return sa
 }
 
-func createPod(name, namespace string, restartPolicy corev1.RestartPolicy) over_client.Object {
+func createPod(name, namespace string, restartPolicy corev1.RestartPolicy) client.Object {
 	return createPodWithLabels(name, namespace, restartPolicy, nil)
 }
 
-func deletePod(pod over_client.Object) {
-	cl, err := over_client.New(cfg, over_client.Options{})
+func deletePod(pod client.Object) {
+	cl, err := client.New(cfg, client.Options{})
 	Expect(err).NotTo(HaveOccurred())
 	err = cl.Delete(context.Background(), pod)
 	Expect(err).NotTo(HaveOccurred())
@@ -144,15 +144,15 @@ var _ = Describe("Cache with transformers", func() {
 		informerCache       cache.Cache
 		informerCacheCtx    context.Context
 		informerCacheCancel context.CancelFunc
-		knownPod1           over_client.Object
-		knownPod2           over_client.Object
-		knownPod3           over_client.Object
-		knownPod4           over_client.Object
-		knownPod5           over_client.Object
-		knownPod6           over_client.Object
+		knownPod1           client.Object
+		knownPod2           client.Object
+		knownPod3           client.Object
+		knownPod4           client.Object
+		knownPod5           client.Object
+		knownPod6           client.Object
 	)
 
-	getTransformValue := func(obj over_client.Object) string {
+	getTransformValue := func(obj client.Object) string {
 		accessor, err := meta.Accessor(obj)
 		if err == nil {
 			annotations := accessor.GetAnnotations()
@@ -168,7 +168,7 @@ var _ = Describe("Cache with transformers", func() {
 		Expect(cfg).NotTo(BeNil())
 
 		By("creating three pods")
-		cl, err := over_client.New(cfg, over_client.Options{})
+		cl, err := client.New(cfg, client.Options{})
 		Expect(err).NotTo(HaveOccurred())
 		err = ensureNode(testNodeOne, cl)
 		Expect(err).NotTo(HaveOccurred())
@@ -220,7 +220,7 @@ var _ = Describe("Cache with transformers", func() {
 				accessor.SetAnnotations(annotations)
 				return i, nil
 			},
-			ByObject: map[over_client.Object]cache.ByObject{
+			ByObject: map[client.Object]cache.ByObject{
 				&corev1.Pod{}: {
 					Transform: func(i interface{}) (interface{}, error) {
 						obj := i.(runtime.Object)
@@ -281,7 +281,7 @@ var _ = Describe("Cache with transformers", func() {
 		It("should apply default transformer to objects when none is specified", func() {
 			By("getting the Kubernetes service")
 			svc := &corev1.Service{}
-			svcKey := over_client.ObjectKey{Namespace: "default", Name: "kubernetes"}
+			svcKey := client.ObjectKey{Namespace: "default", Name: "kubernetes"}
 			Expect(informerCache.Get(context.Background(), svcKey, svc)).To(Succeed())
 
 			By("verifying that the returned service was transformed")
@@ -314,7 +314,7 @@ var _ = Describe("Cache with transformers", func() {
 				Version: "v1",
 				Kind:    "Service",
 			})
-			svcKey := over_client.ObjectKey{Namespace: "default", Name: "kubernetes"}
+			svcKey := client.ObjectKey{Namespace: "default", Name: "kubernetes"}
 			Expect(informerCache.Get(context.Background(), svcKey, svc)).To(Succeed())
 
 			By("verifying that the returned service was transformed")
@@ -346,7 +346,7 @@ var _ = Describe("Cache with transformers", func() {
 				Version: "v1",
 				Kind:    "Service",
 			})
-			svcKey := over_client.ObjectKey{Namespace: "default", Name: "kubernetes"}
+			svcKey := client.ObjectKey{Namespace: "default", Name: "kubernetes"}
 			Expect(informerCache.Get(context.Background(), svcKey, svc)).To(Succeed())
 
 			By("verifying that the returned service was transformed")
@@ -366,7 +366,7 @@ var _ = Describe("Cache with selectors", func() {
 	BeforeEach(func() {
 		informerCacheCtx, informerCacheCancel = context.WithCancel(context.Background())
 		Expect(cfg).NotTo(BeNil())
-		cl, err := over_client.New(cfg, over_client.Options{})
+		cl, err := client.New(cfg, client.Options{})
 		Expect(err).NotTo(HaveOccurred())
 		err = ensureNamespace(testNamespaceOne, cl)
 		Expect(err).NotTo(HaveOccurred())
@@ -379,7 +379,7 @@ var _ = Describe("Cache with selectors", func() {
 
 		opts := cache.Options{
 			DefaultFieldSelector: fields.OneTermEqualSelector("metadata.namespace", testNamespaceTwo),
-			ByObject: map[over_client.Object]cache.ByObject{
+			ByObject: map[client.Object]cache.ByObject{
 				&corev1.ServiceAccount{}: {
 					Field: fields.OneTermEqualSelector("metadata.namespace", testNamespaceOne),
 				},
@@ -400,7 +400,7 @@ var _ = Describe("Cache with selectors", func() {
 
 	AfterEach(func() {
 		ctx := context.Background()
-		cl, err := over_client.New(cfg, over_client.Options{})
+		cl, err := client.New(cfg, client.Options{})
 		Expect(err).NotTo(HaveOccurred())
 		for idx, namespace := range []string{testNamespaceOne, testNamespaceTwo} {
 			err = cl.Delete(ctx, &corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "test-sa-" + strconv.Itoa(idx)}})
@@ -461,7 +461,7 @@ func CacheTestReaderFailOnMissingInformer(createCacheFunc func(config *rest.Conf
 		Describe("as a Reader", func() {
 			Context("with structured objects", func() {
 				It("should not be able to list objects that haven't been watched previously", func() {
-					By("listing all services in the over_cluster")
+					By("listing all services in the cluster")
 					listObj := &corev1.ServiceList{}
 					Expect(errors.As(informerCache.List(context.Background(), listObj), &errNotCached)).To(BeTrue())
 				})
@@ -469,7 +469,7 @@ func CacheTestReaderFailOnMissingInformer(createCacheFunc func(config *rest.Conf
 				It("should not be able to get objects that haven't been watched previously", func() {
 					By("getting the Kubernetes service")
 					svc := &corev1.Service{}
-					svcKey := over_client.ObjectKey{Namespace: "default", Name: "kubernetes"}
+					svcKey := client.ObjectKey{Namespace: "default", Name: "kubernetes"}
 					Expect(errors.As(informerCache.Get(context.Background(), svcKey, svc), &errNotCached)).To(BeTrue())
 				})
 
@@ -478,7 +478,7 @@ func CacheTestReaderFailOnMissingInformer(createCacheFunc func(config *rest.Conf
 					_, err := informerCache.GetInformer(context.Background(), &corev1.Service{})
 					Expect(err).ToNot(HaveOccurred())
 
-					By("listing all services in the over_cluster")
+					By("listing all services in the cluster")
 					svcList := &corev1.ServiceList{}
 					Expect(informerCache.List(context.Background(), svcList)).To(Succeed())
 
@@ -495,7 +495,7 @@ func CacheTestReaderFailOnMissingInformer(createCacheFunc func(config *rest.Conf
 
 					By("getting the Kubernetes service")
 					svc := &corev1.Service{}
-					svcKey := over_client.ObjectKey{Namespace: "default", Name: "kubernetes"}
+					svcKey := client.ObjectKey{Namespace: "default", Name: "kubernetes"}
 					Expect(informerCache.Get(context.Background(), svcKey, svc)).To(Succeed())
 
 					By("verifying that the returned service looks reasonable")
@@ -513,12 +513,12 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 			informerCache       cache.Cache
 			informerCacheCtx    context.Context
 			informerCacheCancel context.CancelFunc
-			knownPod1           over_client.Object
-			knownPod2           over_client.Object
-			knownPod3           over_client.Object
-			knownPod4           over_client.Object
-			knownPod5           over_client.Object
-			knownPod6           over_client.Object
+			knownPod1           client.Object
+			knownPod2           client.Object
+			knownPod3           client.Object
+			knownPod4           client.Object
+			knownPod5           client.Object
+			knownPod6           client.Object
 		)
 
 		BeforeEach(func() {
@@ -526,7 +526,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 			Expect(cfg).NotTo(BeNil())
 
 			By("creating three pods")
-			cl, err := over_client.New(cfg, over_client.Options{})
+			cl, err := client.New(cfg, client.Options{})
 			Expect(err).NotTo(HaveOccurred())
 			err = ensureNode(testNodeOne, cl)
 			Expect(err).NotTo(HaveOccurred())
@@ -583,7 +583,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 		Describe("as a Reader", func() {
 			Context("with structured objects", func() {
 				It("should be able to list objects that haven't been watched previously", func() {
-					By("listing all services in the over_cluster")
+					By("listing all services in the cluster")
 					listObj := &corev1.ServiceList{}
 					Expect(informerCache.List(context.Background(), listObj)).To(Succeed())
 
@@ -604,7 +604,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 				It("should be able to get objects that haven't been watched previously", func() {
 					By("getting the Kubernetes service")
 					svc := &corev1.Service{}
-					svcKey := over_client.ObjectKey{Namespace: "default", Name: "kubernetes"}
+					svcKey := client.ObjectKey{Namespace: "default", Name: "kubernetes"}
 					Expect(informerCache.Get(context.Background(), svcKey, svc)).To(Succeed())
 
 					By("verifying that the returned service looks reasonable")
@@ -617,8 +617,8 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 					// NB: each pod has a "test-label": <pod-name>
 					out := corev1.PodList{}
 					Expect(informerCache.List(context.Background(), &out,
-						over_client.InNamespace(testNamespaceTwo),
-						over_client.MatchingLabels(map[string]string{"test-label": "test-pod-2"}))).To(Succeed())
+						client.InNamespace(testNamespaceTwo),
+						client.MatchingLabels(map[string]string{"test-label": "test-pod-2"}))).To(Succeed())
 
 					By("verifying the returned pods have the correct label")
 					Expect(out.Items).NotTo(BeEmpty())
@@ -636,7 +636,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 					// NB: each pod has a "test-label": <pod-name>
 					out := corev1.PodList{}
 					labels := map[string]string{"test-label": "test-pod-2"}
-					Expect(informerCache.List(context.Background(), &out, over_client.MatchingLabels(labels))).To(Succeed())
+					Expect(informerCache.List(context.Background(), &out, client.MatchingLabels(labels))).To(Succeed())
 
 					By("verifying multiple pods with the same label in different namespaces are returned")
 					Expect(out.Items).NotTo(BeEmpty())
@@ -665,7 +665,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 					By("listing pods in test-namespace-1")
 					listObj := &corev1.PodList{}
 					Expect(informerCache.List(context.Background(), listObj,
-						over_client.InNamespace(testNamespaceOne))).To(Succeed())
+						client.InNamespace(testNamespaceOne))).To(Succeed())
 
 					By("verifying that the returned pods are in test-namespace-1")
 					Expect(listObj.Items).NotTo(BeEmpty())
@@ -679,7 +679,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 					It("should deep copy the object unless told otherwise", func() {
 						By("retrieving a specific pod from the cache")
 						out := &corev1.Pod{}
-						podKey := over_client.ObjectKey{Name: "test-pod-2", Namespace: testNamespaceTwo}
+						podKey := client.ObjectKey{Name: "test-pod-2", Namespace: testNamespaceTwo}
 						Expect(informerCache.Get(context.Background(), podKey, out)).To(Succeed())
 
 						By("verifying the retrieved pod is equal to a known pod")
@@ -694,7 +694,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 				} else {
 					It("should not deep copy the object if UnsafeDisableDeepCopy is enabled", func() {
 						By("getting a specific pod from the cache twice")
-						podKey := over_client.ObjectKey{Name: "test-pod-2", Namespace: testNamespaceTwo}
+						podKey := client.ObjectKey{Name: "test-pod-2", Namespace: testNamespaceTwo}
 						out1 := &corev1.Pod{}
 						Expect(informerCache.Get(context.Background(), podKey, out1)).To(Succeed())
 						out2 := &corev1.Pod{}
@@ -706,9 +706,9 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 
 						By("listing pods from the cache twice")
 						outList1 := &corev1.PodList{}
-						Expect(informerCache.List(context.Background(), outList1, over_client.InNamespace(testNamespaceOne))).To(Succeed())
+						Expect(informerCache.List(context.Background(), outList1, client.InNamespace(testNamespaceOne))).To(Succeed())
 						outList2 := &corev1.PodList{}
-						Expect(informerCache.List(context.Background(), outList2, over_client.InNamespace(testNamespaceOne))).To(Succeed())
+						Expect(informerCache.List(context.Background(), outList2, client.InNamespace(testNamespaceOne))).To(Succeed())
 
 						By("verifying the pointer fields in pod have the same addresses")
 						Expect(outList1.Items).To(HaveLen(len(outList2.Items)))
@@ -726,7 +726,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 				It("should return an error if the object is not found", func() {
 					By("getting a service that does not exists")
 					svc := &corev1.Service{}
-					svcKey := over_client.ObjectKey{Namespace: testNamespaceOne, Name: "unknown"}
+					svcKey := client.ObjectKey{Namespace: testNamespaceOne, Name: "unknown"}
 
 					By("verifying that an error is returned")
 					err := informerCache.Get(context.Background(), svcKey, svc)
@@ -737,7 +737,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 				It("should return an error if getting object in unwatched namespace", func() {
 					By("getting a service that does not exists")
 					svc := &corev1.Service{}
-					svcKey := over_client.ObjectKey{Namespace: "unknown", Name: "unknown"}
+					svcKey := client.ObjectKey{Namespace: "unknown", Name: "unknown"}
 
 					By("verifying that an error is returned")
 					err := informerCache.Get(context.Background(), svcKey, svc)
@@ -750,7 +750,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 
 					By("listing pods in test-namespace-1 with a cancelled context")
 					listObj := &corev1.PodList{}
-					err := informerCache.List(informerCacheCtx, listObj, over_client.InNamespace(testNamespaceOne))
+					err := informerCache.List(informerCacheCtx, listObj, client.InNamespace(testNamespaceOne))
 
 					By("verifying that an error is returned")
 					Expect(err).To(HaveOccurred())
@@ -758,7 +758,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 				})
 
 				It("should set the Limit option and limit number of objects to Limit when List is called", func() {
-					opts := &over_client.ListOptions{Limit: int64(3)}
+					opts := &client.ListOptions{Limit: int64(3)}
 					By("verifying that only Limit (3) number of objects are retrieved from the cache")
 					listObj := &corev1.PodList{}
 					Expect(informerCache.List(context.Background(), listObj, opts)).To(Succeed())
@@ -767,8 +767,8 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 
 				It("should return a limited result set matching the correct label", func() {
 					listObj := &corev1.PodList{}
-					labelOpt := over_client.MatchingLabels(map[string]string{"common-label": "common"})
-					limitOpt := over_client.Limit(1)
+					labelOpt := client.MatchingLabels(map[string]string{"common-label": "common"})
+					limitOpt := client.Limit(1)
 					By("verifying that only Limit (1) number of objects are retrieved from the cache")
 					Expect(informerCache.List(context.Background(), listObj, labelOpt, limitOpt)).To(Succeed())
 					Expect(listObj.Items).Should(HaveLen(1))
@@ -776,7 +776,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 
 				It("should return an error if the continue list options is set", func() {
 					listObj := &corev1.PodList{}
-					continueOpt := over_client.Continue("token")
+					continueOpt := client.Continue("token")
 					By("verifying that an error is returned")
 					err := informerCache.List(context.Background(), listObj, continueOpt)
 					Expect(err).To(HaveOccurred())
@@ -785,7 +785,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 
 			Context("with unstructured objects", func() {
 				It("should be able to list objects that haven't been watched previously", func() {
-					By("listing all services in the over_cluster")
+					By("listing all services in the cluster")
 					listObj := &unstructured.UnstructuredList{}
 					listObj.SetGroupVersionKind(schema.GroupVersionKind{
 						Group:   "",
@@ -816,7 +816,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 						Version: "v1",
 						Kind:    "Service",
 					})
-					svcKey := over_client.ObjectKey{Namespace: "default", Name: "kubernetes"}
+					svcKey := client.ObjectKey{Namespace: "default", Name: "kubernetes"}
 					Expect(informerCache.Get(context.Background(), svcKey, svc)).To(Succeed())
 
 					By("verifying that the returned service looks reasonable")
@@ -834,8 +834,8 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 						Kind:    "PodList",
 					})
 					err := informerCache.List(context.Background(), &out,
-						over_client.InNamespace(testNamespaceTwo),
-						over_client.MatchingLabels(map[string]string{"test-label": "test-pod-2"}))
+						client.InNamespace(testNamespaceTwo),
+						client.MatchingLabels(map[string]string{"test-label": "test-pod-2"}))
 					Expect(err).To(Succeed())
 
 					By("verifying the returned pods have the correct label")
@@ -859,7 +859,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 						Kind:    "PodList",
 					})
 					labels := map[string]string{"test-label": "test-pod-2"}
-					err := informerCache.List(context.Background(), &out, over_client.MatchingLabels(labels))
+					err := informerCache.List(context.Background(), &out, client.MatchingLabels(labels))
 					Expect(err).To(Succeed())
 
 					By("verifying multiple pods with the same label in different namespaces are returned")
@@ -878,7 +878,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 						Version: "v1",
 						Kind:    "PodList",
 					})
-					err := informerCache.List(context.Background(), listObj, over_client.InNamespace(testNamespaceOne))
+					err := informerCache.List(context.Background(), listObj, client.InNamespace(testNamespaceOne))
 					Expect(err).To(Succeed())
 
 					By("verifying that the returned pods are in test-namespace-1")
@@ -896,7 +896,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 					{
 						nameSuffix: "by using the per-gvk setting",
 						cacheOpts: cache.Options{
-							ByObject: map[over_client.Object]cache.ByObject{
+							ByObject: map[client.Object]cache.ByObject{
 								&corev1.Pod{}: {
 									Namespaces: map[string]cache.Config{
 										testNamespaceOne: {},
@@ -943,7 +943,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 						for _, item := range out.Items {
 							Expect(item.GetNamespace()).To(Equal(testNamespaceOne))
 						}
-						By("listing all nodes - should still be able to list a over_cluster-scoped resource")
+						By("listing all nodes - should still be able to list a cluster-scoped resource")
 						nodeList := &unstructured.UnstructuredList{}
 						nodeList.SetGroupVersionKind(schema.GroupVersionKind{
 							Group:   "",
@@ -955,7 +955,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 						By("verifying the node list is not empty")
 						Expect(nodeList.Items).NotTo(BeEmpty())
 
-						By("getting a node - should still be able to get a over_cluster-scoped resource")
+						By("getting a node - should still be able to get a cluster-scoped resource")
 						node := &unstructured.Unstructured{}
 						node.SetGroupVersionKind(schema.GroupVersionKind{
 							Group:   "",
@@ -964,11 +964,11 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 						})
 
 						By("verifying that getting the node works with an empty namespace")
-						key1 := over_client.ObjectKey{Namespace: "", Name: testNodeOne}
+						key1 := client.ObjectKey{Namespace: "", Name: testNodeOne}
 						Expect(namespacedCache.Get(context.Background(), key1, node)).To(Succeed())
 
-						By("verifying that the namespace is ignored when getting a over_cluster-scoped resource")
-						key2 := over_client.ObjectKey{Namespace: "random", Name: testNodeOne}
+						By("verifying that the namespace is ignored when getting a cluster-scoped resource")
+						key2 := client.ObjectKey{Namespace: "random", Name: testNodeOne}
 						Expect(namespacedCache.Get(context.Background(), key2, node)).To(Succeed())
 					})
 				}
@@ -985,7 +985,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 						uKnownPod2 := &unstructured.Unstructured{}
 						Expect(kscheme.Scheme.Convert(knownPod2, uKnownPod2, nil)).To(Succeed())
 
-						podKey := over_client.ObjectKey{Name: "test-pod-2", Namespace: testNamespaceTwo}
+						podKey := client.ObjectKey{Name: "test-pod-2", Namespace: testNamespaceTwo}
 						Expect(informerCache.Get(context.Background(), podKey, out)).To(Succeed())
 
 						By("verifying the retrieved pod is equal to a known pod")
@@ -1001,7 +1001,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 				} else {
 					It("should not deep copy the object if UnsafeDisableDeepCopy is enabled", func() {
 						By("getting a specific pod from the cache twice")
-						podKey := over_client.ObjectKey{Name: "test-pod-2", Namespace: testNamespaceTwo}
+						podKey := client.ObjectKey{Name: "test-pod-2", Namespace: testNamespaceTwo}
 						out1 := &unstructured.Unstructured{}
 						out1.SetGroupVersionKind(schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Pod"})
 						Expect(informerCache.Get(context.Background(), podKey, out1)).To(Succeed())
@@ -1016,10 +1016,10 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 						By("listing pods from the cache twice")
 						outList1 := &unstructured.UnstructuredList{}
 						outList1.SetGroupVersionKind(schema.GroupVersionKind{Group: "", Version: "v1", Kind: "PodList"})
-						Expect(informerCache.List(context.Background(), outList1, over_client.InNamespace(testNamespaceOne))).To(Succeed())
+						Expect(informerCache.List(context.Background(), outList1, client.InNamespace(testNamespaceOne))).To(Succeed())
 						outList2 := &unstructured.UnstructuredList{}
 						outList2.SetGroupVersionKind(schema.GroupVersionKind{Group: "", Version: "v1", Kind: "PodList"})
-						Expect(informerCache.List(context.Background(), outList2, over_client.InNamespace(testNamespaceOne))).To(Succeed())
+						Expect(informerCache.List(context.Background(), outList2, client.InNamespace(testNamespaceOne))).To(Succeed())
 
 						By("verifying the pointer fields in pod have the same addresses")
 						Expect(outList1.Items).To(HaveLen(len(outList2.Items)))
@@ -1042,7 +1042,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 						Version: "v1",
 						Kind:    "Service",
 					})
-					svcKey := over_client.ObjectKey{Namespace: testNamespaceOne, Name: "unknown"}
+					svcKey := client.ObjectKey{Namespace: testNamespaceOne, Name: "unknown"}
 
 					By("verifying that an error is returned")
 					err := informerCache.Get(context.Background(), svcKey, svc)
@@ -1052,13 +1052,13 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 				It("should return an error if getting object in unwatched namespace", func() {
 					By("getting a service that does not exists")
 					svc := &corev1.Service{}
-					svcKey := over_client.ObjectKey{Namespace: "unknown", Name: "unknown"}
+					svcKey := client.ObjectKey{Namespace: "unknown", Name: "unknown"}
 
 					By("verifying that an error is returned")
 					err := informerCache.Get(context.Background(), svcKey, svc)
 					Expect(err).To(HaveOccurred())
 				})
-				It("test multinamespaced cache for over_cluster scoped resources", func() {
+				It("test multinamespaced cache for cluster scoped resources", func() {
 					By("creating a multinamespaced cache to watch specific namespaces")
 					m, err := cache.New(cfg, cache.Options{
 						DefaultNamespaces: map[string]cache.Config{
@@ -1075,14 +1075,14 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 					}()
 					Expect(m.WaitForCacheSync(informerCacheCtx)).To(BeTrue())
 
-					By("should be able to fetch over_cluster scoped resource")
+					By("should be able to fetch cluster scoped resource")
 					node := &corev1.Node{}
 
 					By("verifying that getting the node works with an empty namespace")
-					key1 := over_client.ObjectKey{Namespace: "", Name: testNodeOne}
+					key1 := client.ObjectKey{Namespace: "", Name: testNodeOne}
 					Expect(m.Get(context.Background(), key1, node)).To(Succeed())
 
-					By("verifying if the over_cluster scoped resources are not duplicated")
+					By("verifying if the cluster scoped resources are not duplicated")
 					nodeList := &unstructured.UnstructuredList{}
 					nodeList.SetGroupVersionKind(schema.GroupVersionKind{
 						Group:   "",
@@ -1097,7 +1097,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 				})
 				It("should return an error if the continue list options is set", func() {
 					podList := &unstructured.Unstructured{}
-					continueOpt := over_client.Continue("token")
+					continueOpt := client.Continue("token")
 					By("verifying that an error is returned")
 					err := informerCache.List(context.Background(), podList, continueOpt)
 					Expect(err).To(HaveOccurred())
@@ -1105,7 +1105,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 			})
 			Context("with metadata-only objects", func() {
 				It("should be able to list objects that haven't been watched previously", func() {
-					By("listing all services in the over_cluster")
+					By("listing all services in the cluster")
 					listObj := &metav1.PartialObjectMetadataList{}
 					listObj.SetGroupVersionKind(schema.GroupVersionKind{
 						Group:   "",
@@ -1136,7 +1136,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 						Version: "v1",
 						Kind:    "Service",
 					})
-					svcKey := over_client.ObjectKey{Namespace: "default", Name: "kubernetes"}
+					svcKey := client.ObjectKey{Namespace: "default", Name: "kubernetes"}
 					Expect(informerCache.Get(context.Background(), svcKey, svc)).To(Succeed())
 
 					By("verifying that the returned service looks reasonable")
@@ -1154,8 +1154,8 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 						Kind:    "PodList",
 					})
 					err := informerCache.List(context.Background(), &out,
-						over_client.InNamespace(testNamespaceTwo),
-						over_client.MatchingLabels(map[string]string{"test-label": "test-pod-2"}))
+						client.InNamespace(testNamespaceTwo),
+						client.MatchingLabels(map[string]string{"test-label": "test-pod-2"}))
 					Expect(err).To(Succeed())
 
 					By("verifying the returned pods have the correct label")
@@ -1179,7 +1179,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 						Kind:    "PodList",
 					})
 					labels := map[string]string{"test-label": "test-pod-2"}
-					err := informerCache.List(context.Background(), &out, over_client.MatchingLabels(labels))
+					err := informerCache.List(context.Background(), &out, client.MatchingLabels(labels))
 					Expect(err).To(Succeed())
 
 					By("verifying multiple pods with the same label in different namespaces are returned")
@@ -1198,7 +1198,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 						Version: "v1",
 						Kind:    "PodList",
 					})
-					err := informerCache.List(context.Background(), listObj, over_client.InNamespace(testNamespaceOne))
+					err := informerCache.List(context.Background(), listObj, client.InNamespace(testNamespaceOne))
 					Expect(err).To(Succeed())
 
 					By("verifying that the returned pods are in test-namespace-1")
@@ -1236,7 +1236,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 					for _, item := range out.Items {
 						Expect(item.Namespace).To(Equal(testNamespaceOne))
 					}
-					By("listing all nodes - should still be able to list a over_cluster-scoped resource")
+					By("listing all nodes - should still be able to list a cluster-scoped resource")
 					nodeList := &metav1.PartialObjectMetadataList{}
 					nodeList.SetGroupVersionKind(schema.GroupVersionKind{
 						Group:   "",
@@ -1248,7 +1248,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 					By("verifying the node list is not empty")
 					Expect(nodeList.Items).NotTo(BeEmpty())
 
-					By("getting a node - should still be able to get a over_cluster-scoped resource")
+					By("getting a node - should still be able to get a cluster-scoped resource")
 					node := &metav1.PartialObjectMetadata{}
 					node.SetGroupVersionKind(schema.GroupVersionKind{
 						Group:   "",
@@ -1257,11 +1257,11 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 					})
 
 					By("verifying that getting the node works with an empty namespace")
-					key1 := over_client.ObjectKey{Namespace: "", Name: testNodeOne}
+					key1 := client.ObjectKey{Namespace: "", Name: testNodeOne}
 					Expect(namespacedCache.Get(context.Background(), key1, node)).To(Succeed())
 
-					By("verifying that the namespace is ignored when getting a over_cluster-scoped resource")
-					key2 := over_client.ObjectKey{Namespace: "random", Name: testNodeOne}
+					By("verifying that the namespace is ignored when getting a cluster-scoped resource")
+					key2 := client.ObjectKey{Namespace: "random", Name: testNodeOne}
 					Expect(namespacedCache.Get(context.Background(), key2, node)).To(Succeed())
 				})
 
@@ -1282,7 +1282,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 							Kind:    "Pod",
 						})
 
-						podKey := over_client.ObjectKey{Name: "test-pod-2", Namespace: testNamespaceTwo}
+						podKey := client.ObjectKey{Name: "test-pod-2", Namespace: testNamespaceTwo}
 						Expect(informerCache.Get(context.Background(), podKey, out)).To(Succeed())
 
 						By("verifying the retrieved pod is equal to a known pod")
@@ -1297,7 +1297,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 				} else {
 					It("should not deep copy the object if UnsafeDisableDeepCopy is enabled", func() {
 						By("getting a specific pod from the cache twice")
-						podKey := over_client.ObjectKey{Name: "test-pod-2", Namespace: testNamespaceTwo}
+						podKey := client.ObjectKey{Name: "test-pod-2", Namespace: testNamespaceTwo}
 						out1 := &metav1.PartialObjectMetadata{}
 						out1.SetGroupVersionKind(schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Pod"})
 						Expect(informerCache.Get(context.Background(), podKey, out1)).To(Succeed())
@@ -1313,10 +1313,10 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 						By("listing pods from the cache twice")
 						outList1 := &metav1.PartialObjectMetadataList{}
 						outList1.SetGroupVersionKind(schema.GroupVersionKind{Group: "", Version: "v1", Kind: "PodList"})
-						Expect(informerCache.List(context.Background(), outList1, over_client.InNamespace(testNamespaceOne))).To(Succeed())
+						Expect(informerCache.List(context.Background(), outList1, client.InNamespace(testNamespaceOne))).To(Succeed())
 						outList2 := &metav1.PartialObjectMetadataList{}
 						outList2.SetGroupVersionKind(schema.GroupVersionKind{Group: "", Version: "v1", Kind: "PodList"})
-						Expect(informerCache.List(context.Background(), outList2, over_client.InNamespace(testNamespaceOne))).To(Succeed())
+						Expect(informerCache.List(context.Background(), outList2, client.InNamespace(testNamespaceOne))).To(Succeed())
 
 						By("verifying the pointer fields in pod have the same addresses")
 						Expect(outList1.Items).To(HaveLen(len(outList2.Items)))
@@ -1339,7 +1339,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 						Version: "v1",
 						Kind:    "Service",
 					})
-					svcKey := over_client.ObjectKey{Namespace: testNamespaceOne, Name: "unknown"}
+					svcKey := client.ObjectKey{Namespace: testNamespaceOne, Name: "unknown"}
 
 					By("verifying that an error is returned")
 					err := informerCache.Get(context.Background(), svcKey, svc)
@@ -1349,7 +1349,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 				It("should return an error if getting object in unwatched namespace", func() {
 					By("getting a service that does not exists")
 					svc := &corev1.Service{}
-					svcKey := over_client.ObjectKey{Namespace: "unknown", Name: "unknown"}
+					svcKey := client.ObjectKey{Namespace: "unknown", Name: "unknown"}
 
 					By("verifying that an error is returned")
 					err := informerCache.Get(context.Background(), svcKey, svc)
@@ -1421,7 +1421,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 					expectedPods: []string{"test-pod-1", "test-pod-2", "test-pod-3", "test-pod-4", "test-pod-5", "test-pod-6"},
 				}),
 				Entry("type-level field selector matches one pod", selectorsTestCase{
-					options: cache.Options{ByObject: map[over_client.Object]cache.ByObject{
+					options: cache.Options{ByObject: map[client.Object]cache.ByObject{
 						&corev1.Pod{}: {Field: fields.SelectorFromSet(map[string]string{
 							"metadata.name": "test-pod-2",
 						})},
@@ -1437,7 +1437,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 					expectedPods: []string{"test-pod-2"},
 				}),
 				Entry("type-level field selectors matches multiple pods", selectorsTestCase{
-					options: cache.Options{ByObject: map[over_client.Object]cache.ByObject{
+					options: cache.Options{ByObject: map[client.Object]cache.ByObject{
 						&corev1.Pod{}: {Field: fields.SelectorFromSet(map[string]string{
 							"metadata.namespace": testNamespaceTwo,
 						})},
@@ -1453,7 +1453,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 					expectedPods: []string{"test-pod-2", "test-pod-3", "test-pod-6"},
 				}),
 				Entry("type-level label selector matches one pod", selectorsTestCase{
-					options: cache.Options{ByObject: map[over_client.Object]cache.ByObject{
+					options: cache.Options{ByObject: map[client.Object]cache.ByObject{
 						&corev1.Pod{}: {Label: labels.SelectorFromSet(map[string]string{
 							"test-label": "test-pod-4",
 						})},
@@ -1469,7 +1469,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 					expectedPods: []string{"test-pod-4"},
 				}),
 				Entry("type-level label selector matches multiple pods", selectorsTestCase{
-					options: cache.Options{ByObject: map[over_client.Object]cache.ByObject{
+					options: cache.Options{ByObject: map[client.Object]cache.ByObject{
 						&corev1.Pod{}: {Label: labels.SelectorFromSet(map[string]string{
 							"common-label": "common",
 						})},
@@ -1485,7 +1485,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 					expectedPods: []string{"test-pod-3", "test-pod-4"},
 				}),
 				Entry("type-level label and field selector, matches one pod", selectorsTestCase{
-					options: cache.Options{ByObject: map[over_client.Object]cache.ByObject{
+					options: cache.Options{ByObject: map[client.Object]cache.ByObject{
 						&corev1.Pod{}: {
 							Label: labels.SelectorFromSet(map[string]string{"common-label": "common"}),
 							Field: fields.SelectorFromSet(map[string]string{"metadata.namespace": testNamespaceTwo}),
@@ -1501,7 +1501,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 					expectedPods: []string{"test-pod-3"},
 				}),
 				Entry("type-level label selector does not match, no results", selectorsTestCase{
-					options: cache.Options{ByObject: map[over_client.Object]cache.ByObject{
+					options: cache.Options{ByObject: map[client.Object]cache.ByObject{
 						&corev1.Pod{}: {Label: labels.SelectorFromSet(map[string]string{
 							"new-label": "new",
 						})},
@@ -1517,7 +1517,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 					expectedPods: []string{},
 				}),
 				Entry("type-level field selector does not match, no results", selectorsTestCase{
-					options: cache.Options{ByObject: map[over_client.Object]cache.ByObject{
+					options: cache.Options{ByObject: map[client.Object]cache.ByObject{
 						&corev1.Pod{}: {Field: fields.SelectorFromSet(map[string]string{
 							"metadata.namespace": "new",
 						})},
@@ -1533,7 +1533,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 					expectedPods: []string{},
 				}),
 				Entry("type-level field selector on namespace matches one pod", selectorsTestCase{
-					options: cache.Options{ByObject: map[over_client.Object]cache.ByObject{
+					options: cache.Options{ByObject: map[client.Object]cache.ByObject{
 						&corev1.Pod{}: {Namespaces: map[string]cache.Config{
 							testNamespaceTwo: {
 								FieldSelector: fields.SelectorFromSet(map[string]string{
@@ -1545,7 +1545,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 					expectedPods: []string{"test-pod-2"},
 				}),
 				Entry("type-level field selector on namespace doesn't match", selectorsTestCase{
-					options: cache.Options{ByObject: map[over_client.Object]cache.ByObject{
+					options: cache.Options{ByObject: map[client.Object]cache.ByObject{
 						&corev1.Pod{}: {Namespaces: map[string]cache.Config{
 							testNamespaceTwo: {
 								FieldSelector: fields.SelectorFromSet(map[string]string{
@@ -1581,7 +1581,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 					expectedPods: []string{},
 				}),
 				Entry("type-level label selector on namespace matches one pod", selectorsTestCase{
-					options: cache.Options{ByObject: map[over_client.Object]cache.ByObject{
+					options: cache.Options{ByObject: map[client.Object]cache.ByObject{
 						&corev1.Pod{}: {Namespaces: map[string]cache.Config{
 							testNamespaceTwo: {
 								LabelSelector: labels.SelectorFromSet(map[string]string{
@@ -1593,7 +1593,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 					expectedPods: []string{"test-pod-2"},
 				}),
 				Entry("type-level label selector on namespace doesn't match", selectorsTestCase{
-					options: cache.Options{ByObject: map[over_client.Object]cache.ByObject{
+					options: cache.Options{ByObject: map[client.Object]cache.ByObject{
 						&corev1.Pod{}: {Namespaces: map[string]cache.Config{
 							testNamespaceTwo: {
 								LabelSelector: labels.SelectorFromSet(map[string]string{
@@ -1653,7 +1653,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 					Expect(sii).NotTo(BeNil())
 					Expect(sii.HasSynced()).To(BeTrue())
 
-					By("adding an over_event over_handler listening for object creation which sends the object to a channel")
+					By("adding an event handler listening for object creation which sends the object to a channel")
 					out := make(chan interface{})
 					addFunc := func(obj interface{}) {
 						out <- obj
@@ -1661,7 +1661,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 					_, _ = sii.AddEventHandler(kcache.ResourceEventHandlerFuncs{AddFunc: addFunc})
 
 					By("adding an object")
-					cl, err := over_client.New(cfg, over_client.Options{})
+					cl, err := client.New(cfg, client.Options{})
 					Expect(err).NotTo(HaveOccurred())
 					Expect(cl.Create(context.Background(), pod)).To(Succeed())
 					defer deletePod(pod)
@@ -1677,7 +1677,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 					Expect(sii).NotTo(BeNil())
 					Expect(sii.HasSynced()).To(BeTrue())
 
-					By("adding an over_event over_handler listening for object creation which sends the object to a channel")
+					By("adding an event handler listening for object creation which sends the object to a channel")
 					out := make(chan interface{})
 					addFunc := func(obj interface{}) {
 						out <- obj
@@ -1685,7 +1685,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 					_, _ = sii.AddEventHandler(kcache.ResourceEventHandlerFuncs{AddFunc: addFunc})
 
 					By("adding an object")
-					cl, err := over_client.New(cfg, over_client.Options{})
+					cl, err := client.New(cfg, client.Options{})
 					Expect(err).NotTo(HaveOccurred())
 					pod := &corev1.Pod{
 						ObjectMeta: metav1.ObjectMeta{
@@ -1714,7 +1714,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 
 					By("indexing the restartPolicy field of the Pod object before starting")
 					pod := &corev1.Pod{}
-					indexFunc := func(obj over_client.Object) []string {
+					indexFunc := func(obj client.Object) []string {
 						return []string{string(obj.(*corev1.Pod).Spec.RestartPolicy)}
 					}
 					Expect(informer.IndexField(context.TODO(), pod, "spec.restartPolicy", indexFunc)).To(Succeed())
@@ -1729,7 +1729,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 					By("listing Pods with restartPolicyOnFailure")
 					listObj := &corev1.PodList{}
 					Expect(informer.List(context.Background(), listObj,
-						over_client.MatchingFields{"spec.restartPolicy": "OnFailure"})).To(Succeed())
+						client.MatchingFields{"spec.restartPolicy": "OnFailure"})).To(Succeed())
 					By("verifying that the returned pods have correct restart policy")
 					Expect(listObj.Items).NotTo(BeEmpty())
 					Expect(listObj.Items).Should(HaveLen(1))
@@ -1774,7 +1774,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 					Expect(apierrors.IsTimeout(err)).To(BeTrue())
 				})
 
-				It("should be able not to change indexer values after indexing over_cluster-scope objects", func() {
+				It("should be able not to change indexer values after indexing cluster-scope objects", func() {
 					By("creating the cache")
 					informer, err := cache.New(cfg, cache.Options{})
 					Expect(err).NotTo(HaveOccurred())
@@ -1783,7 +1783,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 					pod := &corev1.Namespace{}
 					indexerValues := []string{"a", "b", "c"}
 					fieldName := "fixedValues"
-					indexFunc := func(obj over_client.Object) []string {
+					indexFunc := func(obj client.Object) []string {
 						return indexerValues
 					}
 					Expect(informer.IndexField(context.TODO(), pod, fieldName, indexFunc)).To(Succeed())
@@ -1798,7 +1798,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 					By("listing Namespaces with fixed indexer")
 					listObj := &corev1.NamespaceList{}
 					Expect(informer.List(context.Background(), listObj,
-						over_client.MatchingFields{fieldName: "a"})).To(Succeed())
+						client.MatchingFields{fieldName: "a"})).To(Succeed())
 					Expect(listObj.Items).NotTo(BeZero())
 
 					By("verifying the indexing does not change fixed returned values")
@@ -1836,7 +1836,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 					Expect(sii).NotTo(BeNil())
 					Expect(sii.HasSynced()).To(BeTrue())
 
-					By("adding an over_event over_handler listening for object creation which sends the object to a channel")
+					By("adding an event handler listening for object creation which sends the object to a channel")
 					out := make(chan interface{})
 					addFunc := func(obj interface{}) {
 						out <- obj
@@ -1844,7 +1844,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 					_, _ = sii.AddEventHandler(kcache.ResourceEventHandlerFuncs{AddFunc: addFunc})
 
 					By("adding an object")
-					cl, err := over_client.New(cfg, over_client.Options{})
+					cl, err := client.New(cfg, client.Options{})
 					Expect(err).NotTo(HaveOccurred())
 					Expect(cl.Create(context.Background(), pod)).To(Succeed())
 					defer deletePod(pod)
@@ -1865,7 +1865,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 						Version: "v1",
 						Kind:    "Pod",
 					})
-					indexFunc := func(obj over_client.Object) []string {
+					indexFunc := func(obj client.Object) []string {
 						s, ok := obj.(*unstructured.Unstructured).Object["spec"]
 						if !ok {
 							return []string{}
@@ -1893,7 +1893,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 						Kind:    "PodList",
 					})
 					err = informer.List(context.Background(), listObj,
-						over_client.MatchingFields{"spec.restartPolicy": "OnFailure"})
+						client.MatchingFields{"spec.restartPolicy": "OnFailure"})
 					Expect(err).To(Succeed())
 
 					By("verifying that the returned pods have correct restart policy")
@@ -1954,7 +1954,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 					Expect(sii).NotTo(BeNil())
 					Expect(sii.HasSynced()).To(BeTrue())
 
-					By("adding an over_event over_handler listening for object creation which sends the object to a channel")
+					By("adding an event handler listening for object creation which sends the object to a channel")
 					out := make(chan interface{})
 					addFunc := func(obj interface{}) {
 						out <- obj
@@ -1962,7 +1962,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 					_, _ = sii.AddEventHandler(kcache.ResourceEventHandlerFuncs{AddFunc: addFunc})
 
 					By("adding an object")
-					cl, err := over_client.New(cfg, over_client.Options{})
+					cl, err := client.New(cfg, client.Options{})
 					Expect(err).NotTo(HaveOccurred())
 					Expect(cl.Create(context.Background(), pod)).To(Succeed())
 					defer deletePod(pod)
@@ -1985,7 +1985,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 						Version: "v1",
 						Kind:    "Pod",
 					})
-					indexFunc := func(obj over_client.Object) []string {
+					indexFunc := func(obj client.Object) []string {
 						metadata := obj.(*metav1.PartialObjectMetadata)
 						return []string{metadata.Labels["test-label"]}
 					}
@@ -2007,7 +2007,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 					}
 					listObj.SetGroupVersionKind(gvk)
 					err = informer.List(context.Background(), listObj,
-						over_client.MatchingFields{"metadata.labels.test-label": "test-pod-3"})
+						client.MatchingFields{"metadata.labels.test-label": "test-pod-3"})
 					Expect(err).To(Succeed())
 
 					By("verifying that the GVK has been preserved for the list object")
@@ -2052,7 +2052,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 			It("should be able to change object in informer cache", func() {
 				By("listing pods")
 				out := corev1.PodList{}
-				Expect(informerCache.List(context.Background(), &out, over_client.UnsafeDisableDeepCopy)).To(Succeed())
+				Expect(informerCache.List(context.Background(), &out, client.UnsafeDisableDeepCopy)).To(Succeed())
 				for _, item := range out.Items {
 					if strings.Compare(item.Name, "test-pod-3") == 0 { // test-pod-3 has labels
 						item.Labels["UnsafeDisableDeepCopy"] = "true"
@@ -2062,7 +2062,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 
 				By("verifying that the returned pods were changed")
 				out2 := corev1.PodList{}
-				Expect(informerCache.List(context.Background(), &out, over_client.UnsafeDisableDeepCopy)).To(Succeed())
+				Expect(informerCache.List(context.Background(), &out, client.UnsafeDisableDeepCopy)).To(Succeed())
 				for _, item := range out2.Items {
 					if strings.Compare(item.Name, "test-pod-3") == 0 {
 						Expect(item.Labels["UnsafeDisableDeepCopy"]).To(Equal("true"))
@@ -2075,7 +2075,7 @@ func CacheTest(createCacheFunc func(config *rest.Config, opts cache.Options) (ca
 }
 
 // ensureNamespace installs namespace of a given name if not exists.
-func ensureNamespace(namespace string, client over_client.Client) error {
+func ensureNamespace(namespace string, client client.Client) error {
 	ns := corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: namespace,
@@ -2092,7 +2092,7 @@ func ensureNamespace(namespace string, client over_client.Client) error {
 	return err
 }
 
-func ensureNode(name string, client over_client.Client) error {
+func ensureNode(name string, client client.Client) error {
 	node := corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,

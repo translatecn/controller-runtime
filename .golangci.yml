@@ -56,7 +56,7 @@ linters-settings:
       - pkg: k8s.io/apimachinery/pkg/util/errors
         alias: kerrors
       # Controller Runtime
-      - pkg: sigs.k8s.io/over_controller-runtime
+      - pkg: sigs.k8s.io/controller-runtime
         alias: ctrl
   staticcheck:
     go: "1.20"
@@ -117,7 +117,7 @@ issues:
       text: Error return value of .((os\.)?std(out|err)\..*|.*Close|.*Flush|os\.Remove(All)?|.*print(f|ln)?|os\.(Un)?Setenv). is not checked
     - linters:
         - staticcheck
-      text: "SA1019: .*The component over_config package has been deprecated and will be removed in a future release."
+      text: "SA1019: .*The component config package has been deprecated and will be removed in a future release."
     # With Go 1.16, the new embed directive can be used with an un-named import,
     # revive (previously, golint) only allows these to be imported in a main.go, which wouldn't work for us.
     # This directive allows the embed package to be imported with an underscore everywhere.
@@ -166,5 +166,5 @@ run:
   timeout: 10m
   skip-files:
     - "zz_generated.*\\.go$"
-    - ".*over_conversion.*\\.go$"
+    - ".*conversion.*\\.go$"
   allow-parallel-runners: true

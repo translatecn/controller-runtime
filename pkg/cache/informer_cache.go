@@ -29,13 +29,13 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"sigs.k8s.io/controller-runtime/pkg/cache/internal"
-	"sigs.k8s.io/controller-runtime/pkg/over_client"
-	over_apiutil "sigs.k8s.io/controller-runtime/pkg/over_client/apiutil"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	apiutil "sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 )
 
 var (
 	_ Informers          = &informerCache{}
-	_ over_client.Reader = &informerCache{}
+	_ client.Reader = &informerCache{}
 	_ Cache              = &informerCache{}
 )
 
@@ -49,7 +49,7 @@ func (*ErrCacheNotStarted) Error() string {
 var _ error = (*ErrCacheNotStarted)(nil)
 
 // ErrResourceNotCached indicates that the resource type
-// the over_client asked the cache for is not cached, i.e. the
+// the client asked the cache for is not cached, i.e. the
 // corresponding informer does not exist yet.
 type ErrResourceNotCached struct {
 	GVK schema.GroupVersionKind
@@ -71,8 +71,8 @@ type informerCache struct {
 }
 
 // Get implements Reader.
-func (ic *informerCache) Get(ctx context.Context, key over_client.ObjectKey, out over_client.Object, opts ...over_client.GetOption) error {
-	gvk, err := over_apiutil.GVKForObject(out, ic.scheme)
+func (ic *informerCache) Get(ctx context.Context, key client.ObjectKey, out client.Object, opts ...client.GetOption) error {
+	gvk, err := apiutil.GVKForObject(out, ic.scheme)
 	if err != nil {
 		return err
 	}
@@ -89,7 +89,7 @@ func (ic *informerCache) Get(ctx context.Context, key over_client.ObjectKey, out
 }
 
 // List implements Reader.
-func (ic *informerCache) List(ctx context.Context, out over_client.ObjectList, opts ...over_client.ListOption) error {
+func (ic *informerCache) List(ctx context.Context, out client.ObjectList, opts ...client.ListOption) error {
 	gvk, cacheTypeObj, err := ic.objectTypeForListObject(out)
 	if err != nil {
 		return err
@@ -110,8 +110,8 @@ func (ic *informerCache) List(ctx context.Context, out over_client.ObjectList, o
 // objectTypeForListObject tries to find the runtime.Object and associated GVK
 // for a single object corresponding to the passed-in list type. We need them
 // because they are used as cache map key.
-func (ic *informerCache) objectTypeForListObject(list over_client.ObjectList) (*schema.GroupVersionKind, runtime.Object, error) {
-	gvk, err := over_apiutil.GVKForObject(list, ic.scheme)
+func (ic *informerCache) objectTypeForListObject(list client.ObjectList) (*schema.GroupVersionKind, runtime.Object, error) {
+	gvk, err := apiutil.GVKForObject(list, ic.scheme)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -133,7 +133,7 @@ func (ic *informerCache) objectTypeForListObject(list over_client.ObjectList) (*
 	}
 
 	// Any other list type should have a corresponding non-list type registered
-	// in the over_scheme. Use that to create a new instance of the non-list type.
+	// in the scheme. Use that to create a new instance of the non-list type.
 	cacheTypeObj, err := ic.scheme.New(gvk)
 	if err != nil {
 		return nil, nil, err
@@ -149,7 +149,7 @@ func (ic *informerCache) GetInformerForKind(ctx context.Context, gvk schema.Grou
 		return nil, err
 	}
 
-	_, i, err := ic.Informers.Get(ctx, gvk, obj)
+	_, i, err := ic.Informers.Get(ctx, gvk, obj) //
 	if err != nil {
 		return nil, err
 	}
@@ -157,8 +157,8 @@ func (ic *informerCache) GetInformerForKind(ctx context.Context, gvk schema.Grou
 }
 
 // GetInformer returns the informer for the obj. If no informer exists, one will be started.
-func (ic *informerCache) GetInformer(ctx context.Context, obj over_client.Object) (Informer, error) {
-	gvk, err := over_apiutil.GVKForObject(obj, ic.scheme)
+func (ic *informerCache) GetInformer(ctx context.Context, obj client.Object) (Informer, error) {
+	gvk, err := apiutil.GVKForObject(obj, ic.scheme)
 	if err != nil {
 		return nil, err
 	}
@@ -193,7 +193,7 @@ func (ic *informerCache) NeedLeaderElection() bool {
 // to List. For one-to-one compatibility with "normal" field selectors, only return one value.
 // The values may be anything. They will automatically be prefixed with the namespace of the
 // given object, if present. The objects passed are guaranteed to be objects of the correct type.
-func (ic *informerCache) IndexField(ctx context.Context, obj over_client.Object, field string, extractValue over_client.IndexerFunc) error {
+func (ic *informerCache) IndexField(ctx context.Context, obj client.Object, field string, extractValue client.IndexerFunc) error {
 	informer, err := ic.GetInformer(ctx, obj)
 	if err != nil {
 		return err
@@ -201,10 +201,10 @@ func (ic *informerCache) IndexField(ctx context.Context, obj over_client.Object,
 	return indexByField(informer, field, extractValue)
 }
 
-func indexByField(informer Informer, field string, extractValue over_client.IndexerFunc) error {
+func indexByField(informer Informer, field string, extractValue client.IndexerFunc) error {
 	indexFunc := func(objRaw interface{}) ([]string, error) {
 		// TODO(directxman12): check if this is the correct type?
-		obj, isObj := objRaw.(over_client.Object)
+		obj, isObj := objRaw.(client.Object)
 		if !isObj {
 			return nil, fmt.Errorf("object of type %T is not an Object", objRaw)
 		}

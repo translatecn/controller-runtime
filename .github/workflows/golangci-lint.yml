@@ -12,7 +12,7 @@ jobs:
       matrix:
         working-directory:
           - ""
-          - over_tools/setup-over_envtest
+          - tools/setup-envtest
     steps:
       - uses: actions/setup-go@v4
         with:

@@ -28,8 +28,8 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 
 	"sigs.k8s.io/controller-runtime/pkg/cache/internal"
-	"sigs.k8s.io/controller-runtime/pkg/over_controller/controllertest"
-	crscheme "sigs.k8s.io/controller-runtime/pkg/over_scheme"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllertest"
+	crscheme "sigs.k8s.io/controller-runtime/pkg/scheme"
 )
 
 const (

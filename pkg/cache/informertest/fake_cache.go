@@ -25,8 +25,8 @@ import (
 	toolscache "k8s.io/client-go/tools/cache"
 
 	"sigs.k8s.io/controller-runtime/pkg/cache"
-	"sigs.k8s.io/controller-runtime/pkg/over_client"
-	"sigs.k8s.io/controller-runtime/pkg/over_controller/controllertest"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllertest"
 )
 
 var _ cache.Cache = &FakeInformers{}
@@ -61,7 +61,7 @@ func (c *FakeInformers) FakeInformerForKind(ctx context.Context, gvk schema.Grou
 }
 
 // GetInformer implements Informers.
-func (c *FakeInformers) GetInformer(ctx context.Context, obj over_client.Object) (cache.Informer, error) {
+func (c *FakeInformers) GetInformer(ctx context.Context, obj client.Object) (cache.Informer, error) {
 	if c.Scheme == nil {
 		c.Scheme = scheme.Scheme
 	}
@@ -82,7 +82,7 @@ func (c *FakeInformers) WaitForCacheSync(ctx context.Context) bool {
 }
 
 // FakeInformerFor implements Informers.
-func (c *FakeInformers) FakeInformerFor(ctx context.Context, obj over_client.Object) (*controllertest.FakeInformer, error) {
+func (c *FakeInformers) FakeInformerFor(ctx context.Context, obj client.Object) (*controllertest.FakeInformer, error) {
 	i, err := c.GetInformer(ctx, obj)
 	if err != nil {
 		return nil, err
@@ -112,16 +112,16 @@ func (c *FakeInformers) Start(ctx context.Context) error {
 }
 
 // IndexField implements Cache.
-func (c *FakeInformers) IndexField(ctx context.Context, obj over_client.Object, field string, extractValue over_client.IndexerFunc) error {
+func (c *FakeInformers) IndexField(ctx context.Context, obj client.Object, field string, extractValue client.IndexerFunc) error {
 	return nil
 }
 
 // Get implements Cache.
-func (c *FakeInformers) Get(ctx context.Context, key over_client.ObjectKey, obj over_client.Object, opts ...over_client.GetOption) error {
+func (c *FakeInformers) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 	return nil
 }
 
 // List implements Cache.
-func (c *FakeInformers) List(ctx context.Context, list over_client.ObjectList, opts ...over_client.ListOption) error {
+func (c *FakeInformers) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
 	return nil
 }

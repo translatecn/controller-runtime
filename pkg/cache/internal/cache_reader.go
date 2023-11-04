@@ -28,14 +28,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/cache"
 
-	"sigs.k8s.io/controller-runtime/pkg/over_client"
-	"sigs.k8s.io/controller-runtime/pkg/over_internal/field/selector"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/internal/field/selector"
 )
 
-// CacheReader is a over_client.Reader.
-var _ over_client.Reader = &CacheReader{}
+// CacheReader is a client.Reader.
+var _ client.Reader = &CacheReader{}
 
-// CacheReader wraps a cache.Index to implement the over_client.CacheReader interface for a single type.
+// CacheReader wraps a cache.Index to implement the client.CacheReader interface for a single type.
 type CacheReader struct {
 	// indexer is the underlying indexer wrapped by this cache.
 	indexer cache.Indexer
@@ -43,7 +43,7 @@ type CacheReader struct {
 	// groupVersionKind is the group-version-kind of the resource.
 	groupVersionKind schema.GroupVersionKind
 
-	// scopeName is the scope of the resource (namespaced or over_cluster-scoped).
+	// scopeName is the scope of the resource (namespaced or cluster-scoped).
 	scopeName apimeta.RESTScopeName
 
 	// disableDeepCopy indicates not to deep copy objects during get or list objects.
@@ -53,7 +53,7 @@ type CacheReader struct {
 }
 
 // Get checks the indexer for the object and writes a copy of it if found.
-func (c *CacheReader) Get(_ context.Context, key over_client.ObjectKey, out over_client.Object, _ ...over_client.GetOption) error {
+func (c *CacheReader) Get(_ context.Context, key client.ObjectKey, out client.Object, _ ...client.GetOption) error {
 	if c.scopeName == apimeta.RESTScopeNameRoot {
 		key.Namespace = ""
 	}
@@ -104,11 +104,11 @@ func (c *CacheReader) Get(_ context.Context, key over_client.ObjectKey, out over
 }
 
 // List lists items out of the indexer and writes them to out.
-func (c *CacheReader) List(_ context.Context, out over_client.ObjectList, opts ...over_client.ListOption) error {
+func (c *CacheReader) List(_ context.Context, out client.ObjectList, opts ...client.ListOption) error {
 	var objs []interface{}
 	var err error
 
-	listOpts := over_client.ListOptions{}
+	listOpts := client.ListOptions{}
 	listOpts.ApplyOptions(opts)
 
 	if listOpts.Continue != "" {
@@ -182,7 +182,7 @@ func (c *CacheReader) List(_ context.Context, out over_client.ObjectList, opts .
 // It's akin to MetaNamespaceKeyFunc. It's separate from
 // String to allow keeping the key format easily in sync with
 // MetaNamespaceKeyFunc.
-func objectKeyToStoreKey(k over_client.ObjectKey) string {
+func objectKeyToStoreKey(k client.ObjectKey) string {
 	if k.Namespace == "" {
 		return k.Name
 	}

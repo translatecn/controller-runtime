@@ -23,9 +23,9 @@ import (
 	. "github.com/onsi/gomega"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"sigs.k8s.io/controller-runtime/pkg/over_envtest"
-	logf "sigs.k8s.io/controller-runtime/pkg/over_log"
-	"sigs.k8s.io/controller-runtime/pkg/over_log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/envtest"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 func TestSource(t *testing.T) {
@@ -33,14 +33,14 @@ func TestSource(t *testing.T) {
 	RunSpecs(t, "Cache Suite")
 }
 
-var testenv *over_envtest.Environment
+var testenv *envtest.Environment
 var cfg *rest.Config
 var clientset *kubernetes.Clientset
 
 var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 
-	testenv = &over_envtest.Environment{}
+	testenv = &envtest.Environment{}
 
 	var err error
 	cfg, err = testenv.Start()

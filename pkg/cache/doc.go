@@ -14,6 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package cache provides object caches that act as caching over_client.Reader
-// instances and help drive Kubernetes-object-based over_event handlers.
+// Package cache provides object caches that act as caching client.Reader
+// instances and help drive Kubernetes-object-based event handlers.
 package cache
