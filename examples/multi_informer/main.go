@@ -25,6 +25,7 @@ import (
 	"k8s.io/utils/pointer"
 	"net/http"
 	"os"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	apiutil "sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -34,9 +35,6 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/webhook/authentication"
-
-	"sigs.k8s.io/controller-runtime/pkg/cache"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -61,6 +59,8 @@ type reconcileReplicaSet struct {
 }
 
 func (r reconcileReplicaSet) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
+	log := log.FromContext(ctx).WithValues("chaospod", request.NamespacedName)
+	log.V(1).Info("reconciling chaos pod")
 	return reconcile.Result{}, nil
 }
 
@@ -72,6 +72,7 @@ func main() {
 	}
 	// Setup a Manager
 	entryLog.Info("setting up manager")
+	entryLog.V(3).Info("setting up manager3")
 	u := &unstructured.Unstructured{}
 	object, _ := apiutil.GVKForObject(&corev1.Pod{}, scheme)
 	u.SetGroupVersionKind(object)
@@ -174,9 +175,9 @@ func main() {
 		return nil
 	})
 	mgr.Add(RunAble{})
-	hookServer := mgr.GetWebhookServer() // manager.New 初始化了 WebhookServer
-	hookServer.Register("/validate-v1-tokenreview", &authentication.Webhook{Handler: nil})
-	mgr.Add(hookServer)
+	//hookServer := mgr.GetWebhookServer() // manager.New 初始化了 WebhookServer
+	//hookServer.Register("/validate-v1-tokenreview", &authentication.Webhook{Handler: nil})
+	//mgr.Add(hookServer)
 	entryLog.Info("starting manager")
 
 	go func() {
